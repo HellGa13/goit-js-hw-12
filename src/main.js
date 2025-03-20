@@ -1,23 +1,20 @@
 import iziToast from "izitoast";
 import "izitoast/dist/css/iziToast.min.css";
-
 import 'loaders.css/loaders.min.css';
+
 // Імпорт функцій з файлів
 import { responseData, resetPage } from './js/pixabay-api';
 import { renderImages, clearGallery, refreshLightbox } from './js/render-functions';
 // Імпорт іконки
 import iconSvgError from './img/webp/Group.png';
 
-
-
-// Cам код
+// Елементи DOM
 const form = document.querySelector('.form');
 const loaderElement = document.querySelector('.loader');
 const gallery = document.querySelector('.gallery');
 const loadMoreBtn = document.querySelector('.load-more');
 
-
-// Налаштування повідомлення про помилку
+// Налаштування повідомлень
 const errorMesage = {
   message: 'Sorry, there are no images matching your search query. Please try again!',
   messageColor: '#fff',
@@ -26,7 +23,6 @@ const errorMesage = {
   iconUrl: iconSvgError,
 };
 
-// Налаштування повідомлення про кінець пошуку
 const endMessage = {
   message: "We're sorry, but you've reached the end of search results.",
   messageColor: '#fff',
@@ -35,92 +31,99 @@ const endMessage = {
   iconUrl: iconSvgError,
 };
 
-
-form.addEventListener('submit', searchImages);
-loadMoreBtn.addEventListener('click', loadMoreImages);
+// Змінні для пошуку
 let totalHits = 0;
 let loadedImages = 0;
 let query = '';
 
+// Слухачі подій
+form.addEventListener('submit', searchImages);
+loadMoreBtn.addEventListener('click', loadMoreImages);
+
+// Функція для пошуку зображень
 async function searchImages(event) {
   event.preventDefault();
-  // Отримуємо текст запиту з поля вводу
-  const query = event.currentTarget.elements.searchQuery.value.trim();
+  
+  // Отримуємо текст запиту
+  query = event.currentTarget.elements.searchQuery.value.trim();
   if (!query) {
     return;
   }
 
   loaderElement.classList.remove('visually-hidden');
-  
   clearGallery();
-  // Очищаємо поле вводу
   form.reset();
-
-  // Очищаємо значення сторінки до 1
   resetPage();
 
-  // Виконуємо запит на сервер
-  loadedImages = 0;
+  loadedImages = 0; // Скидаємо лічильник завантажених зображень
 
-  // Виконуємо запит до API для отримання зображень
-    try {
-      const data = await responseData(query);
-      const images = data.hits;
-      totalHits = data.totalHits; // Зберігаємо загальну кількість зображень
-      loadedImages = images.length; // Зберігаємо кількість завантажених зображень
-    if (images.length === 0) {
+  try {
+    const data = await responseData(query);
+    if (!data || !data.hits || data.hits.length === 0) {
       iziToast.show(errorMesage);
-      loadMoreBtn.classList.add('visually-hidden'); // Ховаємо кнопку "Load more" 
-     return;
-    }
-
-
-      // Додаємо отримані зображення в галерею
-      renderImages(data.hits);
-      refreshLightbox();
-    if (loadedImages >= totalHits) {
-    // Перевірка на кінець колекції
-      iziToast.show(endOfSearch);
       loadMoreBtn.classList.add('visually-hidden');
-    } else {
-      loadMoreBtn.classList.remove('visually-hidden');
+      return;
     }
+
+    const images = data.hits;
+    totalHits = data.totalHits;
+    loadedImages = images.length;
+
+    renderImages(images);
+    refreshLightbox();
+    toggleLoadMoreButton(loadedImages, totalHits);
   } catch (error) {
-    iziToast.show(errorMesage);
+    iziToast.show({
+      ...errorMesage,
+      message: `An error occurred: ${error.message}`,
+    });
   } finally {
-    // Ховаємо лоадер
     loaderElement.classList.add('visually-hidden');
   }
 }
 
-
+// Функція для завантаження додаткових зображень
 async function loadMoreImages() {
   loaderElement.classList.remove('visually-hidden');
   const galleryHeightBefore = gallery.scrollHeight;
+
   try {
     const data = await responseData(query);
-    const images = data.hits;
-    loadedImages += images.length;
-    if (images.length === 0) {
+    if (!data || !data.hits || data.hits.length === 0) {
       iziToast.show(errorMesage);
-      loadMoreBtn.classList.add('visually-hidden'); // Ховаємо кнопку "Load more" якщо більше немає зображень
+      loadMoreBtn.classList.add('visually-hidden');
       return;
     }
-    renderImages(data.hits);
+
+    const images = data.hits;
+    loadedImages += images.length;
+
+    renderImages(images);
     refreshLightbox();
+
     const galleryHeightAfter = gallery.scrollHeight;
     window.scrollBy({
       top: galleryHeightAfter - galleryHeightBefore,
       behavior: 'smooth',
-    }); // Прокручуємо сторінку вниз на висоту новозавантажених елементів
-    if (loadedImages >= totalHits) {
-      // Перевірка на кінець колекції
-      iziToast.show(endMessage);
-      loadMoreBtn.classList.add('visually-hidden');
-    }
+    });
+
+    toggleLoadMoreButton(loadedImages, totalHits);
   } catch (error) {
-    iziToast.show(errorMesage);
+    iziToast.show({
+      ...errorMesage,
+      message: `An error occurred: ${error.message}`,
+    });
   } finally {
     loaderElement.classList.add('visually-hidden');
+  }
+}
+
+// Функція для увімкнення/вимкнення кнопки "Load More"
+function toggleLoadMoreButton(loaded, total) {
+  if (loaded >= total) {
+    iziToast.show(endMessage);
+    loadMoreBtn.classList.add('visually-hidden');
+  } else {
+    loadMoreBtn.classList.remove('visually-hidden');
   }
 }

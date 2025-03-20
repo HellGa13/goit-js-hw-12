@@ -48,7 +48,8 @@ img {
     outline: none;
 }
 
-.submit-buttom {
+.submit-buttom,
+.load-more {
     border-radius: 8px;
     padding: 8px 16px;
     width: 91px;
@@ -58,8 +59,15 @@ img {
     border: none;
 }
 
-.submit-buttom:hover {
+.submit-buttom:hover, 
+.load-more:hover {
     background: #6c8cff;
+}
+
+.load-more {
+    margin: 32px auto;
+    display: block;
+    width: 125px;
 }
 
 .gallery {
